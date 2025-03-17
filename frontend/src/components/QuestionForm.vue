@@ -1,25 +1,50 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref } from "vue";
+import { marked } from 'marked';
+
 
 type Message = {
   text: string;
-  sender: 'client' | 'other';
+  sender: "client" | "other";
 };
 
-const message = ref<string>('');
+const message = ref<string>("");
 const messages = ref<Message[]>([]);
 
-const sendMessage = (): void => {
+// @ts-ignore
+const sendMessage = async (): Promise<void> => {
   if (message.value.trim() !== '') {
     messages.value.push({ text: message.value, sender: 'client' });
 
-    setTimeout(() => {
-      messages.value.push({ text: "This is an answer.", sender: 'other' });
-    }, 1000);
+    try {
+      const response = await fetch('http://localhost:3000/ask', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ question: message.value }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Error with the response');
+      }
+
+      const data = await response.json();
+      messages.value.push({ text: data.answer, sender: 'other' });
+
+    } catch (error) {
+      console.error('Error sending message:', error);
+      messages.value.push({ text: 'Failed to get a response.', sender: 'other' });
+    }
 
     message.value = '';
   }
 };
+
+const renderMarkdown = (text: string) => {
+  return marked(text);
+};
+
 </script>
 
 
@@ -31,7 +56,8 @@ const sendMessage = (): void => {
         :key="index"
         :class="['message', msg.sender]"
       >
-        {{ msg.text }}
+      <div v-html="renderMarkdown(msg.text)"></div>
+
       </div>
     </div>
 
@@ -66,10 +92,10 @@ const sendMessage = (): void => {
   gap: 10px;
 }
 
-/* Styles des messages */
 .message {
+  margin: 8px !important;
   max-width: 70%;
-  padding: 10px;
+  padding: 8px;
   border-radius: 10px;
   word-wrap: break-word;
 }
@@ -99,7 +125,7 @@ const sendMessage = (): void => {
 }
 
 .input-container input {
-  font-family: 'Kode Mono';
+  font-family: "Kode Mono";
   width: 90%;
   background-color: #282828;
   color: #eeeeee;
@@ -114,9 +140,9 @@ const sendMessage = (): void => {
 }
 
 .input-container button {
-  font-family: 'Kode Mono';
+  font-family: "Kode Mono";
   width: 10%;
-  background-color: #00ADB5;
+  background-color: #00adb5;
   border: none;
   border-radius: 5px;
   color: #eeeeee;
@@ -126,5 +152,9 @@ const sendMessage = (): void => {
 .input-container button:active {
   border: 1px solid white;
   outline: none;
+}
+.message p {
+  margin: 0px !important;
+  padding:0px !important;
 }
 </style>
